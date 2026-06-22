@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Washapp – Gestión de Servicios</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --green-900: #0d3320;
+    --green-800: #1B4D31;
+    --green-700: #1B6B3A;
+    --green-600: #2D8A52;
+    --green-500: #3DAA6A;
+    --green-400: #5DC589;
+    --green-200: #B8EAC9;
+    --green-100: #E0F5E9;
+    --green-50:  #F2FBF5;
+    --white: #FFFFFF;
+    --gray-50:  #F7F8F7;
+    --gray-100: #EDEEED;
+    --gray-200: #D8DAD8;
+    --gray-400: #9EA39E;
+    --gray-600: #5C625C;
+    --gray-800: #2D3A2E;
+    --blue-100: #DBEAFE; --blue-800: #1E40AF;
+    --purple-100: #EDE9FE; --purple-800: #5B21B6;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+    --shadow-md: 0 4px 16px rgba(0,0,0,0.10);
+    --radius-sm: 8px; --radius-md: 12px; --radius-lg: 16px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--gray-50); color: var(--gray-800); min-height: 100vh; }
+
+  /* AUTH */
+  #auth-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: linear-gradient(160deg, var(--green-900) 0%, var(--green-700) 60%, var(--green-500) 100%); }
+  .auth-card { background: var(--white); border-radius: var(--radius-lg); padding: 48px 40px; width: 100%; max-width: 400px; box-shadow: var(--shadow-md); }
+  .auth-logo { text-align: center; margin-bottom: 32px; }
+  .auth-logo .logo-icon { width: 56px; height: 56px; background: var(--green-700); border-radius: 14px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 12px; }
+  .auth-logo .logo-icon svg { width: 30px; height: 30px; }
+  .auth-logo h1 { font-size: 24px; font-weight: 700; color: var(--green-800); letter-spacing: -0.5px; }
+  .auth-logo p { font-size: 13px; color: var(--gray-400); margin-top: 4px; }
+  .form-group { margin-bottom: 18px; }
+  .form-group label { display: block; font-size: 13px; font-weight: 600; color: var(--gray-600); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 11px 14px; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); font-size: 15px; font-family: inherit; color: var(--gray-800); background: var(--white); outline: none; transition: border-color 0.15s; }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--green-500); }
+  .btn-primary { width: 100%; padding: 13px; background: var(--green-700); color: var(--white); border: none; border-radius: var(--radius-sm); font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.15s; font-family: inherit; }
+  .btn-primary:hover { background: var(--green-800); }
+  .btn-primary:disabled { background: var(--gray-400); cursor: not-allowed; }
+  .error-msg { color: #c0392b; font-size: 13px; margin-top: 12px; text-align: center; padding: 10px; background: #fdf0ee; border-radius: var(--radius-sm); display: none; }
+
+  /* APP SHELL */
+  #app { display: none; min-height: 100vh; }
+  .topbar { background: var(--green-800); padding: 0 24px; height: 60px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+  .topbar-left { display: flex; align-items: center; gap: 16px; }
+  .topbar-logo { display: flex; align-items: center; gap: 10px; }
+  .topbar-logo .tl-icon { width: 34px; height: 34px; background: var(--green-500); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+  .topbar-logo .tl-icon svg { width: 18px; height: 18px; }
+  .topbar-logo span { font-size: 18px; font-weight: 700; color: var(--white); letter-spacing: -0.3px; }
+  .topbar-badge { font-size: 12px; padding: 3px 10px; border-radius: 20px; font-weight: 600; }
+  .badge-dueno { background: var(--green-500); color: var(--white); }
+  .badge-equipo1 { background: #3B82F6; color: var(--white); }
+  .badge-equipo2 { background: #8B5CF6; color: var(--white); }
+  .topbar-right { display: flex; align-items: center; gap: 12px; }
+  .topbar-user { font-size: 13px; color: var(--green-200); }
+  .btn-logout { background: rgba(255,255,255,0.12); color: var(--white); border: none; padding: 7px 14px; border-radius: var(--radius-sm); font-size: 13px; cursor: pointer; font-family: inherit; transition: background 0.15s; }
+  .btn-logout:hover { background: rgba(255,255,255,0.22); }
+
+  /* TABS */
+  .tabs { display: flex; gap: 4px; background: var(--green-900); padding: 0 24px; }
+  .tab-btn { padding: 12px 20px; font-size: 14px; font-weight: 600; color: var(--green-200); background: none; border: none; border-bottom: 3px solid transparent; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+  .tab-btn:hover { color: var(--white); }
+  .tab-btn.active { color: var(--white); border-bottom-color: var(--green-400); }
+
+  .main-content { max-width: 1100px; margin: 0 auto; padding: 28px 24px; }
+
+  /* TOOLBAR */
+  .toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
+  .toolbar-left { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .toolbar h2 { font-size: 22px; font-weight: 700; color: var(--green-800); letter-spacing: -0.4px; }
+  .date-label { font-size: 13px; color: var(--gray-400); font-weight: 500; }
+  .filters { display: flex; gap: 10px; flex-wrap: wrap; }
+  .filter-select { padding: 8px 12px; border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); font-size: 13px; font-family: inherit; color: var(--gray-800); background: var(--white); cursor: pointer; outline: none; }
+  .filter-select:focus { border-color: var(--green-500); }
+  .btn-nuevo { padding: 10px 20px; background: var(--green-700); color: var(--white); border: none; border-radius: var(--radius-sm); font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; transition: background 0.15s; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .btn-nuevo:hover { background: var(--green-800); }
+
+  /* STATS */
+  .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .stat-card { background: var(--white); border-radius: var(--radius-md); padding: 16px 20px; box-shadow: var(--shadow-sm); border: 1px solid var(--gray-100); }
+  .stat-card .stat-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.7px; color: var(--gray-400); margin-bottom: 6px; }
+  .stat-card .stat-value { font-size: 26px; font-weight: 700; color: var(--green-700); }
+  .stat-card .stat-sub { font-size: 12px; color: var(--gray-400); margin-top: 2px; }
+
+  /* EQUIPO SECTIONS */
+  .equipo-section { margin-bottom: 32px; }
+  .equipo-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 2px solid var(--gray-100); }
+  .equipo-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .dot-equipo1 { background: #3B82F6; }
+  .dot-equipo2 { background: #8B5CF6; }
+  .equipo-header h3 { font-size: 16px; font-weight: 700; color: var(--gray-800); }
+  .equipo-header .eq-members { font-size: 13px; color: var(--gray-400); }
+  .equipo-count { margin-left: auto; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 20px; background: var(--gray-100); color: var(--gray-600); }
+
+  /* SERVICE CARDS */
+  .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+  .service-card { background: var(--white); border-radius: var(--radius-md); border: 1px solid var(--gray-100); box-shadow: var(--shadow-sm); overflow: hidden; transition: box-shadow 0.15s, transform 0.15s; }
+  .service-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+  .service-card.completado { opacity: 0.65; }
+  .card-accent { height: 4px; width: 100%; }
+  .accent-equipo1 { background: #3B82F6; }
+  .accent-equipo2 { background: #8B5CF6; }
+  .card-body { padding: 16px 18px; }
+  .card-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; gap: 10px; }
+  .card-nombre { font-size: 16px; font-weight: 700; color: var(--gray-800); line-height: 1.2; }
+  .card-nombre.tachado { text-decoration: line-through; color: var(--gray-400); }
+  .card-tipo { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 20px; white-space: nowrap; flex-shrink: 0; }
+  .tipo-auto  { background: var(--green-100); color: var(--green-800); }
+  .tipo-casa  { background: #EEF2FF; color: #3730A3; }
+  .card-info { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--gray-600); }
+  .card-info-row { display: flex; align-items: center; gap: 7px; }
+  .card-info-row svg { width: 14px; height: 14px; color: var(--gray-400); flex-shrink: 0; }
+  .card-hora { font-size: 18px; font-weight: 700; color: var(--green-700); }
+  .card-cotizacion { font-weight: 700; color: var(--green-700); font-size: 15px; }
+  .card-footer { display: flex; align-items: center; justify-content: space-between; padding: 10px 18px 14px; gap: 10px; }
+  .estado-badge { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.4px; }
+  .estado-pendiente   { background: #FEF3C7; color: #92400E; }
+  .estado-confirmado  { background: #DBEAFE; color: #1E40AF; }
+  .estado-en_curso    { background: #FEE2E2; color: #991B1B; }
+  .estado-completado  { background: var(--green-100); color: var(--green-800); }
+  .estado-cancelado   { background: var(--gray-100); color: var(--gray-600); }
+  .card-actions { display: flex; gap: 8px; }
+  .btn-realizado { padding: 7px 14px; border-radius: var(--radius-sm); font-size: 12px; font-weight: 700; cursor: pointer; border: none; font-family: inherit; transition: background 0.15s; display: flex; align-items: center; gap: 5px; }
+  .btn-marcar-realizado { background: var(--green-100); color: var(--green-800); }
+  .btn-marcar-realizado:hover { background: var(--green-200); }
+  .btn-desmarcar { background: var(--gray-100); color: var(--gray-600); }
+  .btn-desmarcar:hover { background: var(--gray-200); }
+  .btn-icon { width: 32px; height: 32px; border-radius: var(--radius-sm); border: 1px solid var(--gray-200); background: var(--white); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.15s; flex-shrink: 0; }
+  .btn-icon:hover { background: var(--gray-100); }
+  .btn-icon svg { width: 15px; height: 15px; color: var(--gray-600); }
+  .btn-icon.danger:hover { background: #FEF2F2; border-color: #FCA5A5; }
+  .btn-icon.danger:hover svg { color: #DC2626; }
+  .empty-state { text-align: center; padding: 48px 24px; color: var(--gray-400); grid-column: 1/-1; }
+  .empty-state svg { width: 40px; height: 40px; margin-bottom: 12px; opacity: 0.4; }
+  .empty-state p { font-size: 14px; }
+  .card-nota { background: #FFFBEB; border-left: 3px solid #F59E0B; border-radius: 0 4px 4px 0; padding: 7px 10px; font-size: 12px; color: #78350F; margin-top: 10px; line-height: 1.4; }
+
+  /* MODAL */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 200; align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--white); border-radius: var(--radius-lg); padding: 28px 30px; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+  .modal-header h3 { font-size: 18px; font-weight: 700; color: var(--green-800); }
+  .btn-close { width: 32px; height: 32px; border-radius: var(--radius-sm); border: 1px solid var(--gray-200); background: var(--white); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--gray-400); line-height: 1; }
+  .btn-close:hover { background: var(--gray-100); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-row .form-group { margin-bottom: 0; }
+  .modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--gray-100); }
+  .btn-secondary { padding: 10px 20px; background: var(--white); color: var(--gray-600); border: 1.5px solid var(--gray-200); border-radius: var(--radius-sm); font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
+  .btn-secondary:hover { background: var(--gray-50); }
+  .btn-save { padding: 10px 24px; background: var(--green-700); color: var(--white); border: none; border-radius: var(--radius-sm); font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
+  .btn-save:hover { background: var(--green-800); }
+  .btn-save:disabled { background: var(--gray-400); cursor: not-allowed; }
+
+  /* VISTA EQUIPO */
+  .day-greeting { background: var(--green-700); border-radius: var(--radius-md); padding: 20px 24px; margin-bottom: 24px; color: var(--white); display: flex; align-items: center; justify-content: space-between; }
+  .day-greeting h2 { font-size: 20px; font-weight: 700; }
+  .day-greeting p  { font-size: 13px; opacity: 0.8; margin-top: 2px; }
+  .day-greeting .greeting-count { font-size: 36px; font-weight: 800; opacity: 0.25; }
+
+  /* ── CONTABILIDAD ── */
+  .contab-section { margin-bottom: 32px; }
+
+  .semana-actual-banner {
+    background: var(--green-700);
+    border-radius: var(--radius-md);
+    padding: 22px 28px;
+    color: var(--white);
+    margin-bottom: 24px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 20px;
+    align-items: center;
+  }
+  .semana-actual-banner h3 { font-size: 13px; font-weight: 600; opacity: 0.75; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 4px; }
+  .semana-actual-banner .sem-label { font-size: 18px; font-weight: 700; }
+  .semana-actual-banner .sem-total { font-size: 38px; font-weight: 800; letter-spacing: -1px; }
+  .semana-actual-banner .sem-total-label { font-size: 12px; opacity: 0.7; margin-top: 2px; }
+
+  .dias-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .dia-card {
+    background: var(--white);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--gray-100);
+    padding: 14px 16px;
+    box-shadow: var(--shadow-sm);
+  }
+  .dia-card.dia-hoy { border-color: var(--green-400); border-width: 2px; }
+  .dia-card.dia-futuro { opacity: 0.45; }
+
+  .dia-card .dc-label { font-size: 12px; font-weight: 700; color: var(--gray-400); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; }
+  .dia-card .dc-label .hoy-badge { font-size: 10px; background: var(--green-100); color: var(--green-700); padding: 2px 7px; border-radius: 10px; font-weight: 700; }
+  .dia-card .dc-eq { display: flex; justify-content: space-between; align-items: center; font-size: 13px; padding: 4px 0; border-bottom: 1px solid var(--gray-100); }
+  .dia-card .dc-eq:last-of-type { border-bottom: none; }
+  .dia-card .dc-eq .eq-name { display: flex; align-items: center; gap: 5px; color: var(--gray-600); }
+  .dia-card .dc-eq .eq-name .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .dia-card .dc-eq .eq-monto { font-weight: 700; font-size: 13px; color: var(--gray-800); }
+  .dia-card .dc-total { display: flex; justify-content: space-between; margin-top: 8px; padding-top: 8px; border-top: 2px solid var(--gray-100); font-size: 13px; font-weight: 700; color: var(--green-700); }
+  .dia-card .dc-pendiente { font-size: 11px; color: var(--gray-400); margin-top: 4px; }
+
+  .equipos-resumen {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .eq-resumen-card {
+    background: var(--white);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--gray-100);
+    padding: 16px 20px;
+    box-shadow: var(--shadow-sm);
+  }
+  .eq-resumen-card .erc-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .eq-resumen-card .erc-header .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .eq-resumen-card .erc-header h4 { font-size: 13px; font-weight: 700; color: var(--gray-800); }
+  .eq-resumen-card .erc-header small { font-size: 12px; color: var(--gray-400); }
+  .eq-resumen-card .erc-monto { font-size: 28px; font-weight: 800; color: var(--green-700); letter-spacing: -0.5px; }
+  .eq-resumen-card .erc-sub { font-size: 12px; color: var(--gray-400); margin-top: 2px; }
+
+  .btn-cerrar-semana {
+    width: 100%;
+    padding: 14px;
+    background: var(--green-700);
+    color: var(--white);
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s;
+    margin-bottom: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .btn-cerrar-semana:hover { background: var(--green-800); }
+  .btn-cerrar-semana:disabled { background: var(--gray-400); cursor: not-allowed; }
+
+  /* HISTORIAL */
+  .historial-title { font-size: 16px; font-weight: 700; color: var(--gray-800); margin-bottom: 14px; padding-bottom: 12px; border-bottom: 2px solid var(--gray-100); }
+
+  .semana-hist-card {
+    background: var(--white);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--gray-100);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+  .shc-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s;
+  }
+  .shc-header:hover { background: var(--gray-50); }
+  .shc-header-left h4 { font-size: 15px; font-weight: 700; color: var(--gray-800); }
+  .shc-header-left span { font-size: 12px; color: var(--gray-400); margin-top: 2px; display: block; }
+  .shc-total { font-size: 20px; font-weight: 800; color: var(--green-700); }
+  .shc-chevron { font-size: 14px; color: var(--gray-400); transition: transform 0.2s; margin-left: 12px; }
+  .shc-chevron.open { transform: rotate(180deg); }
+  .shc-body { display: none; border-top: 1px solid var(--gray-100); padding: 16px 20px; }
+  .shc-body.open { display: block; }
+  .shc-eq-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; font-size: 14px; border-bottom: 1px solid var(--gray-100); }
+  .shc-eq-row:last-child { border-bottom: none; }
+  .shc-eq-row .eq-label { display: flex; align-items: center; gap: 7px; color: var(--gray-600); font-weight: 600; }
+  .shc-eq-row .eq-val { font-weight: 700; color: var(--gray-800); }
+  .shc-dias-table { margin-top: 14px; width: 100%; border-collapse: collapse; font-size: 13px; }
+  .shc-dias-table th { text-align: left; color: var(--gray-400); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 6px 8px; border-bottom: 1px solid var(--gray-100); }
+  .shc-dias-table td { padding: 8px 8px; border-bottom: 1px solid var(--gray-100); color: var(--gray-700); }
+  .shc-dias-table td:not(:first-child) { font-weight: 700; text-align: right; }
+  .shc-dias-table tr:last-child td { border-bottom: none; }
+
+  .loading { text-align: center; padding: 60px; color: var(--gray-400); font-size: 14px; }
+
+  @media (max-width: 600px) {
+    .form-row { grid-template-columns: 1fr; }
+    .main-content { padding: 16px; }
+    .topbar { padding: 0 16px; }
+    .auth-card { padding: 32px 24px; }
+    .cards-grid { grid-template-columns: 1fr; }
+    .equipos-resumen { grid-template-columns: 1fr; }
+    .semana-actual-banner { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 30 30" fill="none"><path d="M5 20C5 20 8 10 15 10C22 10 25 20 25 20" stroke="white" stroke-width="2.5" stroke-linecap="round"/><path d="M9 20C9 20 10.5 15 15 15C19.5 15 21 20 21 20" stroke="white" stroke-width="2" stroke-linecap="round" opacity="0.7"/><circle cx="15" cy="22" r="2.5" fill="white"/></svg>
+      </div>
+      <h1>Washapp</h1>
+      <p>Servicios de tapizado</p>
+    </div>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="login-email" placeholder="correo@ejemplo.com" autocomplete="email" />
+    </div>
+    <div class="form-group">
+      <label>Contraseña</label>
+      <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password" />
+    </div>
+    <button class="btn-primary" id="btn-login">Ingresar</button>
+    <div class="error-msg" id="login-error"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-logo">
+        <div class="tl-icon">
+          <svg viewBox="0 0 30 30" fill="none"><path d="M5 20C5 20 8 10 15 10C22 10 25 20 25 20" stroke="white" stroke-width="2.5" stroke-linecap="round"/><path d="M9 20C9 20 10.5 15 15 15C19.5 15 21 20 21 20" stroke="white" stroke-width="2" stroke-linecap="round" opacity="0.7"/><circle cx="15" cy="22" r="2.5" fill="white"/></svg>
+        </div>
+        <span>Washapp</span>
+      </div>
+      <span class="topbar-badge" id="topbar-badge"></span>
+    </div>
+    <div class="topbar-right">
+      <span class="topbar-user" id="topbar-user"></span>
+      <button class="btn-logout" id="btn-logout">Salir</button>
+    </div>
+  </div>
+
+  <!-- TABS (solo dueño) -->
+  <div class="tabs" id="tabs-bar" style="display:none">
+    <button class="tab-btn active" id="tab-servicios" onclick="switchTab('servicios')">Servicios</button>
+    <button class="tab-btn" id="tab-contabilidad" onclick="switchTab('contabilidad')">Contabilidad</button>
+  </div>
+
+  <div class="main-content">
+
+    <!-- ══ VISTA DUEÑO – SERVICIOS ══ -->
+    <div id="vista-dueno" style="display:none">
+      <div class="stats-row" id="stats-row"></div>
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <h2>Servicios</h2>
+          <span class="date-label">Año 2026</span>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+          <div class="filters">
+            <select class="filter-select" id="filtro-fecha"><option value="">Todos los días</option></select>
+            <select class="filter-select" id="filtro-equipo">
+              <option value="">Ambos equipos</option>
+              <option value="equipo1">Equipo 1</option>
+              <option value="equipo2">Equipo 2</option>
+            </select>
+            <select class="filter-select" id="filtro-estado">
+              <option value="">Todos los estados</option>
+              <option value="pendiente">Pendiente</option>
+              <option value="confirmado">Confirmado</option>
+              <option value="en_curso">En curso</option>
+              <option value="completado">Completado</option>
+              <option value="cancelado">Cancelado</option>
+            </select>
+          </div>
+          <button class="btn-nuevo" id="btn-nuevo">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            Nuevo servicio
+          </button>
+        </div>
+      </div>
+      <div id="loading-dueno" class="loading">Cargando servicios…</div>
+      <div class="equipo-section">
+        <div class="equipo-header">
+          <div class="equipo-dot dot-equipo1"></div>
+          <h3>Equipo 1</h3>
+          <span class="eq-members">Nahuel y Máximo</span>
+          <span class="equipo-count" id="count-equipo1">0</span>
+        </div>
+        <div class="cards-grid" id="grid-equipo1"></div>
+      </div>
+      <div class="equipo-section">
+        <div class="equipo-header">
+          <div class="equipo-dot dot-equipo2"></div>
+          <h3>Equipo 2</h3>
+          <span class="eq-members">Ángel y su madre</span>
+          <span class="equipo-count" id="count-equipo2">0</span>
+        </div>
+        <div class="cards-grid" id="grid-equipo2"></div>
+      </div>
+    </div>
+
+    <!-- ══ VISTA DUEÑO – CONTABILIDAD ══ -->
+    <div id="vista-contabilidad" style="display:none">
+      <div id="loading-contab" class="loading">Cargando contabilidad…</div>
+      <div id="contab-contenido" style="display:none">
+
+        <!-- Semana actual -->
+        <div class="semana-actual-banner">
+          <div>
+            <h3>Semana en curso</h3>
+            <div class="sem-label" id="sem-label-actual"></div>
+          </div>
+          <div style="text-align:right">
+            <div class="sem-total" id="sem-total-actual">$0</div>
+            <div class="sem-total-label">total acumulado</div>
+          </div>
+        </div>
+
+        <!-- Resumen por equipo -->
+        <div class="equipos-resumen">
+          <div class="eq-resumen-card">
+            <div class="erc-header">
+              <div class="dot dot-equipo1"></div>
+              <h4>Equipo 1</h4>
+              <small>Nahuel y Máximo</small>
+            </div>
+            <div class="erc-monto" id="eq1-semana-total">$0</div>
+            <div class="erc-sub" id="eq1-semana-completados">0 servicios completados</div>
+          </div>
+          <div class="eq-resumen-card">
+            <div class="erc-header">
+              <div class="dot dot-equipo2"></div>
+              <h4>Equipo 2</h4>
+              <small>Ángel y su madre</small>
+            </div>
+            <div class="erc-monto" id="eq2-semana-total">$0</div>
+            <div class="erc-sub" id="eq2-semana-completados">0 servicios completados</div>
+          </div>
+        </div>
+
+        <!-- Desglose por día -->
+        <div class="contab-section">
+          <div class="dias-grid" id="dias-grid"></div>
+        </div>
+
+        <!-- Botón cerrar semana (solo sábado ≥17hs) -->
+        <div id="cerrar-semana-wrap">
+          <button class="btn-cerrar-semana" id="btn-cerrar-semana" onclick="cerrarSemana()">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 2v7l4 2" stroke="white" stroke-width="2" stroke-linecap="round"/><circle cx="9" cy="9" r="7" stroke="white" stroke-width="2"/></svg>
+            Cerrar semana y guardar en historial
+          </button>
+          <p id="cerrar-semana-info" style="text-align:center;font-size:12px;color:var(--gray-400);margin-top:8px;margin-bottom:24px;"></p>
+        </div>
+
+        <!-- Historial -->
+        <div>
+          <div class="historial-title">Historial de semanas</div>
+          <div id="historial-semanas"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ VISTA EQUIPO ══ -->
+    <div id="vista-equipo" style="display:none">
+      <div class="day-greeting">
+        <div>
+          <h2 id="greeting-title"></h2>
+          <p id="greeting-date"></p>
+        </div>
+        <div class="greeting-count" id="greeting-count"></div>
+      </div>
+      <div id="loading-equipo" class="loading">Cargando servicios…</div>
+      <div class="cards-grid" id="grid-equipo"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- MODAL SERVICIO -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-title">Nuevo servicio</h3>
+      <button class="btn-close" id="btn-close-modal">✕</button>
+    </div>
+    <div class="form-row" style="margin-bottom:14px">
+      <div class="form-group"><label>Nombre del cliente *</label><input type="text" id="f-nombre" placeholder="Juan García" /></div>
+      <div class="form-group"><label>Teléfono</label><input type="tel" id="f-telefono" placeholder="+54 9 11..." /></div>
+    </div>
+    <div class="form-row" style="margin-bottom:14px">
+      <div class="form-group"><label>Tipo de servicio *</label>
+        <select id="f-tipo"><option value="">Seleccionar…</option><option value="auto">🚗 Tapizado de auto</option><option value="casa">🏠 Tapizado de casa</option></select>
+      </div>
+      <div class="form-group"><label>Cotización ($)</label><input type="number" id="f-cotizacion" placeholder="15000" min="0" /></div>
+    </div>
+    <div class="form-group" style="margin-bottom:14px"><label>Descripción del servicio</label><input type="text" id="f-descripcion" placeholder="Ej: 5 asientos, sofá de 3 cuerpos..." /></div>
+    <div class="form-group" style="margin-bottom:14px"><label>Dirección *</label><input type="text" id="f-direccion" placeholder="Av. Corrientes 1234, CABA" /></div>
+    <div class="form-row" style="margin-bottom:14px">
+      <div class="form-group"><label>Fecha del servicio *</label><input type="date" id="f-fecha" /></div>
+      <div class="form-group"><label>Hora *</label><input type="time" id="f-hora" /></div>
+    </div>
+    <div class="form-row" style="margin-bottom:14px">
+      <div class="form-group"><label>Equipo asignado *</label>
+        <select id="f-equipo"><option value="">Seleccionar…</option><option value="equipo1">Equipo 1 – Nahuel y Máximo</option><option value="equipo2">Equipo 2 – Ángel y su madre</option></select>
+      </div>
+      <div class="form-group"><label>Estado</label>
+        <select id="f-estado"><option value="pendiente">Pendiente</option><option value="confirmado">Confirmado</option><option value="en_curso">En curso</option><option value="completado">Completado</option><option value="cancelado">Cancelado</option></select>
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:0"><label>Anotaciones</label><textarea id="f-anotaciones" rows="2" placeholder="Notas internas, instrucciones especiales…" style="resize:vertical"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn-secondary" id="btn-cancel-modal">Cancelar</button>
+      <button class="btn-save" id="btn-save-modal">Guardar servicio</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL     = 'https://yqernjhutgqdpfohhara.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlxZXJuamh1dGdxZHBmb2hoYXJhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxNDg4NjUsImV4cCI6MjA5NzcyNDg2NX0.BCMZ-DkwrwLat8_IQ20gg1RVeMu3dYRGI1Q9jAL0YdA';
+
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let currentUser   = null;
+let currentPerfil = null;
+let servicios     = [];
+let editingId     = null;
+let tabActual     = 'servicios';
+
+const AHORA = new Date();
+const HOY   = AHORA.toISOString().split('T')[0];
+const HORA_ACTUAL = AHORA.getHours() + AHORA.getMinutes() / 60;
+
+// ── HELPERS ──
+function formatFecha(dateStr) {
+  const [y,m,d] = dateStr.split('-');
+  return new Date(y, m-1, d).toLocaleDateString('es-AR', { weekday:'long', day:'numeric', month:'long' });
+}
+function formatFechaCorta(dateStr) {
+  const [y,m,d] = dateStr.split('-');
+  return new Date(y, m-1, d).toLocaleDateString('es-AR', { weekday:'short', day:'numeric', month:'short' });
+}
+function formatHora(t)    { return t ? t.slice(0,5) : ''; }
+function formatPrecio(n)  { if (!n && n !== 0) return '—'; return '$' + Number(n).toLocaleString('es-AR'); }
+function estadoLabel(e)   { return { pendiente:'Pendiente', confirmado:'Confirmado', en_curso:'En curso', completado:'Completado', cancelado:'Cancelado' }[e] || e; }
+
+// Lunes y sábado de la semana que contiene 'date' (Date object)
+function semanaDeDate(date) {
+  const d = new Date(date);
+  const dow = d.getDay(); // 0=dom,1=lun...6=sab
+  const diffLunes = dow === 0 ? -6 : 1 - dow;
+  const lunes = new Date(d); lunes.setDate(d.getDate() + diffLunes);
+  const sabado = new Date(lunes); sabado.setDate(lunes.getDate() + 5);
+  const toStr = x => x.toISOString().split('T')[0];
+  return { lunes: toStr(lunes), sabado: toStr(sabado) };
+}
+
+// Semana activa: después de las 17 del sábado pasa a la semana siguiente
+function semanaActiva() {
+  let ref = new Date(AHORA);
+  const esSabado = ref.getDay() === 6;
+  if (esSabado && HORA_ACTUAL >= 17) {
+    ref.setDate(ref.getDate() + 2); // saltar al lunes siguiente
+  }
+  return semanaDeDate(ref);
+}
+
+function labelSemana(lunes, sabado) {
+  const [,lm,ld] = lunes.split('-');
+  const [,sm,sd] = sabado.split('-');
+  const meses = ['','ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  if (lm === sm) return `Semana del ${parseInt(ld)} al ${parseInt(sd)} de ${meses[parseInt(lm)]}`;
+  return `Semana del ${parseInt(ld)} de ${meses[parseInt(lm)]} al ${parseInt(sd)} de ${meses[parseInt(sm)]}`;
+}
+
+// Días laborales de la semana (lun-sab)
+function diasDeSemana(lunes, sabado) {
+  const dias = [];
+  let cur = new Date(lunes + 'T00:00:00');
+  const fin = new Date(sabado + 'T00:00:00');
+  while (cur <= fin) {
+    dias.push(cur.toISOString().split('T')[0]);
+    cur.setDate(cur.getDate() + 1);
+  }
+  return dias;
+}
+
+// ── AUTH ──
+document.getElementById('btn-login').addEventListener('click', doLogin);
+document.getElementById('login-pass').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
+
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const pass  = document.getElementById('login-pass').value;
+  const errEl = document.getElementById('login-error');
+  const btn   = document.getElementById('btn-login');
+  errEl.style.display = 'none';
+  btn.textContent = 'Ingresando…'; btn.disabled = true;
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if (error) {
+    errEl.textContent = 'Email o contraseña incorrectos.';
+    errEl.style.display = 'block';
+    btn.textContent = 'Ingresar'; btn.disabled = false;
+    return;
+  }
+  await initApp(data.user);
+}
+
+document.getElementById('btn-logout').addEventListener('click', async () => {
+  await sb.auth.signOut(); location.reload();
+});
+
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) await initApp(session.user);
+})();
+
+// ── INIT ──
+async function initApp(user) {
+  currentUser = user;
+  const { data: perfil } = await sb.from('perfiles').select('*').eq('id', user.id).single();
+  if (!perfil) {
+    document.getElementById('login-error').textContent = 'No se encontró perfil. Contactá al administrador.';
+    document.getElementById('login-error').style.display = 'block';
+    document.getElementById('btn-login').textContent = 'Ingresar';
+    document.getElementById('btn-login').disabled = false;
+    return;
+  }
+  currentPerfil = perfil;
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  const badgeEl = document.getElementById('topbar-badge');
+  const roleNames = { dueno:'Dueño', equipo1:'Equipo 1', equipo2:'Equipo 2' };
+  const badgeClasses = { dueno:'badge-dueno', equipo1:'badge-equipo1', equipo2:'badge-equipo2' };
+  badgeEl.textContent = roleNames[perfil.rol];
+  badgeEl.className = 'topbar-badge ' + badgeClasses[perfil.rol];
+  document.getElementById('topbar-user').textContent = perfil.nombre;
+  if (perfil.rol === 'dueno') {
+    document.getElementById('tabs-bar').style.display = 'flex';
+    initDueno();
+  } else {
+    initEquipo();
+  }
+}
+
+// ── TABS ──
+function switchTab(tab) {
+  tabActual = tab;
+  document.getElementById('tab-servicios').classList.toggle('active', tab === 'servicios');
+  document.getElementById('tab-contabilidad').classList.toggle('active', tab === 'contabilidad');
+  document.getElementById('vista-dueno').style.display       = tab === 'servicios'     ? 'block' : 'none';
+  document.getElementById('vista-contabilidad').style.display = tab === 'contabilidad' ? 'block' : 'none';
+  if (tab === 'contabilidad') cargarContabilidad();
+}
+
+// ── VISTA DUEÑO – SERVICIOS ──
+async function initDueno() {
+  document.getElementById('vista-dueno').style.display = 'block';
+  const sel = document.getElementById('filtro-fecha');
+  const start = new Date('2026-01-01'), end = new Date('2026-12-31');
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate()+1)) {
+    const val = d.toISOString().split('T')[0];
+    const opt = document.createElement('option');
+    opt.value = val;
+    opt.textContent = formatFecha(val);
+    if (val === HOY) { opt.textContent += ' (hoy)'; opt.selected = true; }
+    sel.appendChild(opt);
+  }
+  await cargarServiciosDueno();
+  ['filtro-fecha','filtro-equipo','filtro-estado'].forEach(id => {
+    document.getElementById(id).addEventListener('change', renderDueno);
+  });
+}
+
+async function cargarServiciosDueno() {
+  document.getElementById('loading-dueno').style.display = 'block';
+  const { data, error } = await sb.from('servicios').select('*')
+    .gte('fecha_servicio','2026-01-01').lte('fecha_servicio','2026-12-31')
+    .order('fecha_servicio',{ascending:true}).order('hora_servicio',{ascending:true});
+  document.getElementById('loading-dueno').style.display = 'none';
+  if (error) { console.error(error); return; }
+  servicios = data || [];
+  renderEstadisticas();
+  renderDueno();
+}
+
+function renderEstadisticas() {
+  const total       = servicios.length;
+  const completados = servicios.filter(s=>s.estado==='completado').length;
+  const pendientes  = servicios.filter(s=>s.estado==='pendiente').length;
+  const ingresos    = servicios.filter(s=>s.estado==='completado').reduce((a,s)=>a+(Number(s.cotizacion)||0),0);
+  document.getElementById('stats-row').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Total servicios</div><div class="stat-value">${total}</div><div class="stat-sub">en 2026</div></div>
+    <div class="stat-card"><div class="stat-label">Completados</div><div class="stat-value">${completados}</div><div class="stat-sub">${total?Math.round(completados/total*100):0}% del total</div></div>
+    <div class="stat-card"><div class="stat-label">Pendientes</div><div class="stat-value">${pendientes}</div><div class="stat-sub">por realizar</div></div>
+    <div class="stat-card"><div class="stat-label">Ingresos realizados</div><div class="stat-value" style="font-size:20px">${formatPrecio(ingresos)}</div><div class="stat-sub">solo completados</div></div>`;
+}
+
+function getFiltered() {
+  const fecha  = document.getElementById('filtro-fecha').value;
+  const equipo = document.getElementById('filtro-equipo').value;
+  const estado = document.getElementById('filtro-estado').value;
+  return servicios.filter(s => {
+    if (fecha  && s.fecha_servicio !== fecha) return false;
+    if (equipo && s.equipo !== equipo)         return false;
+    if (estado && s.estado !== estado)         return false;
+    return true;
+  });
+}
+
+function renderDueno() {
+  const filtered = getFiltered();
+  const eq1 = filtered.filter(s=>s.equipo==='equipo1');
+  const eq2 = filtered.filter(s=>s.equipo==='equipo2');
+  document.getElementById('count-equipo1').textContent = eq1.length;
+  document.getElementById('count-equipo2').textContent = eq2.length;
+  document.getElementById('grid-equipo1').innerHTML = renderCards(eq1, true);
+  document.getElementById('grid-equipo2').innerHTML = renderCards(eq2, true);
+  attachCardEvents();
+}
+
+// ── CONTABILIDAD ──
+async function cargarContabilidad() {
+  document.getElementById('loading-contab').style.display = 'block';
+  document.getElementById('contab-contenido').style.display = 'none';
+
+  const { lunes, sabado } = semanaActiva();
+
+  // Cargar servicios de la semana actual
+  const { data: servSemana } = await sb.from('servicios').select('*')
+    .gte('fecha_servicio', lunes).lte('fecha_servicio', sabado)
+    .eq('estado','completado');
+
+  // Cargar historial de semanas cerradas
+  const { data: historial } = await sb.from('semanas').select('*')
+    .order('fecha_inicio', { ascending: false });
+
+  document.getElementById('loading-contab').style.display = 'none';
+  document.getElementById('contab-contenido').style.display = 'block';
+
+  const sems = servSemana || [];
+
+  // Totales por equipo esta semana
+  const totalEq1 = sems.filter(s=>s.equipo==='equipo1').reduce((a,s)=>a+(Number(s.cotizacion)||0),0);
+  const totalEq2 = sems.filter(s=>s.equipo==='equipo2').reduce((a,s)=>a+(Number(s.cotizacion)||0),0);
+  const totalGen  = totalEq1 + totalEq2;
+  const cntEq1   = sems.filter(s=>s.equipo==='equipo1').length;
+  const cntEq2   = sems.filter(s=>s.equipo==='equipo2').length;
+
+  document.getElementById('sem-label-actual').textContent = labelSemana(lunes, sabado);
+  document.getElementById('sem-total-actual').textContent = formatPrecio(totalGen);
+  document.getElementById('eq1-semana-total').textContent = formatPrecio(totalEq1);
+  document.getElementById('eq2-semana-total').textContent = formatPrecio(totalEq2);
+  document.getElementById('eq1-semana-completados').textContent = `${cntEq1} servicio${cntEq1!==1?'s':''} completado${cntEq1!==1?'s':''}`;
+  document.getElementById('eq2-semana-completados').textContent = `${cntEq2} servicio${cntEq2!==1?'s':''} completado${cntEq2!==1?'s':''}`;
+
+  // Días de la semana
+  const dias = diasDeSemana(lunes, sabado);
+  const diasGrid = document.getElementById('dias-grid');
+  diasGrid.innerHTML = dias.map(fecha => {
+    const esFuturo = fecha > HOY;
+    const esHoy    = fecha === HOY;
+    const dSems = sems.filter(s => s.fecha_servicio === fecha);
+    const dEq1  = dSems.filter(s=>s.equipo==='equipo1').reduce((a,s)=>a+(Number(s.cotizacion)||0),0);
+    const dEq2  = dSems.filter(s=>s.equipo==='equipo2').reduce((a,s)=>a+(Number(s.cotizacion)||0),0);
+    const dTot  = dEq1 + dEq2;
+    return `
+    <div class="dia-card ${esHoy?'dia-hoy':''} ${esFuturo?'dia-futuro':''}">
+      <div class="dc-label">
+        ${formatFechaCorta(fecha).replace('.','').toUpperCase()}
+        ${esHoy ? '<span class="hoy-badge">hoy</span>' : ''}
+      </div>
+      <div class="dc-eq">
+        <span class="eq-name"><span class="dot" style="background:#3B82F6"></span>Eq. 1</span>
+        <span class="eq-monto">${dEq1>0?formatPrecio(dEq1):'—'}</span>
+      </div>
+      <div class="dc-eq">
+        <span class="eq-name"><span class="dot" style="background:#8B5CF6"></span>Eq. 2</span>
+        <span class="eq-monto">${dEq2>0?formatPrecio(dEq2):'—'}</span>
+      </div>
+      <div class="dc-total"><span>Total</span><span>${dTot>0?formatPrecio(dTot):'—'}</span></div>
+      ${esFuturo ? '<div class="dc-pendiente">Sin servicios aún</div>' : ''}
+    </div>`;
+  }).join('');
+
+  // Botón cerrar semana
+  const esSabado      = new Date(AHORA).getDay() === 6;
+  const despues17     = HORA_ACTUAL >= 17;
+  const puedesCerrar  = esSabado && despues17;
+  const btnCerrar     = document.getElementById('btn-cerrar-semana');
+  const infoCerrar    = document.getElementById('cerrar-semana-info');
+
+  // Verificar si esta semana ya fue cerrada
+  const yaFueCerrada = (historial||[]).some(s => s.fecha_inicio === lunes);
+
+  if (yaFueCerrada) {
+    btnCerrar.disabled = true;
+    btnCerrar.textContent = '✓ Semana ya cerrada en historial';
+    infoCerrar.textContent = '';
+  } else if (!esSabado) {
+    btnCerrar.disabled = true;
+    infoCerrar.textContent = 'El cierre de semana se habilita el sábado a las 17:00 hs.';
+  } else if (!despues17) {
+    btnCerrar.disabled = true;
+    infoCerrar.textContent = 'Disponible a partir de las 17:00 hs de hoy (sábado).';
+  } else {
+    btnCerrar.disabled = false;
+    infoCerrar.textContent = '¡Listo para cerrar! Esto guarda el resumen en el historial.';
+  }
+
+  // Historial
+  renderHistorial(historial || []);
+}
+
+function renderHistorial(semanas) {
+  const cont = document.getElementById('historial-semanas');
+  if (!semanas.length) {
+    cont.innerHTML = '<p style="color:var(--gray-400);font-size:14px;padding:20px 0;text-align:center;">Todavía no hay semanas cerradas.</p>';
+    return;
+  }
+  cont.innerHTML = semanas.map((sem, i) => {
+    const detalle = sem.detalle_dias || [];
+    return `
+    <div class="semana-hist-card">
+      <div class="shc-header" onclick="toggleHist(${i})">
+        <div class="shc-header-left">
+          <h4>${sem.label}</h4>
+          <span>Cerrada el ${new Date(sem.cerrada_at).toLocaleDateString('es-AR')}</span>
+        </div>
+        <div style="display:flex;align-items:center">
+          <span class="shc-total">${formatPrecio(sem.total_general)}</span>
+          <span class="shc-chevron" id="chev-${i}">▼</span>
+        </div>
+      </div>
+      <div class="shc-body" id="hist-body-${i}">
+        <div class="shc-eq-row">
+          <span class="eq-label"><span style="width:10px;height:10px;border-radius:50%;background:#3B82F6;display:inline-block"></span>Equipo 1 – Nahuel y Máximo</span>
+          <span class="eq-val">${formatPrecio(sem.total_equipo1)}</span>
+        </div>
+        <div class="shc-eq-row">
+          <span class="eq-label"><span style="width:10px;height:10px;border-radius:50%;background:#8B5CF6;display:inline-block"></span>Equipo 2 – Ángel y su madre</span>
+          <span class="eq-val">${formatPrecio(sem.total_equipo2)}</span>
+        </div>
+        ${detalle.length ? `
+        <table class="shc-dias-table" style="margin-top:14px">
+          <thead><tr><th>Día</th><th style="text-align:right">Eq. 1</th><th style="text-align:right">Eq. 2</th><th style="text-align:right">Total</th></tr></thead>
+          <tbody>
+            ${detalle.map(d=>`
+            <tr>
+              <td>${formatFechaCorta(d.fecha)}</td>
+              <td>${formatPrecio(d.equipo1)}</td>
+              <td>${formatPrecio(d.equipo2)}</td>
+              <td>${formatPrecio(d.total)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleHist(i) {
+  const body = document.getElementById('hist-body-' + i);
+  const chev = document.getElementById('chev-' + i);
+  body.classList.toggle('open');
+  chev.classList.toggle('open');
+}
+
+async function cerrarSemana() {
+  if (!confirm('¿Cerrar la semana y guardar el resumen en el historial? Esta acción no se puede deshacer.')) return;
+
+  const btn = document.getElementById('btn-cerrar-semana');
+  btn.disabled = true;
+  btn.textContent = 'Guardando…';
+
+  const { lunes, sabado } = semanaActiva();
+  const { data: sems } = await sb.from('servicios').select('*')
+    .gte('fecha_servicio', lunes).lte('fecha_servicio', sabado).eq('estado','completado');
+
+  const lista = sems || [];
+  const dias  = diasDeSemana(lunes, sabado);
+
+  const totalEq1 = lista.filter(s=>s.equipo==='equipo1').reduce((a,s)=>a+(Number(s.cotizacion)||0),0);
+  const totalEq2 = lista.filter(s=>s.equipo==='equipo2').reduce((a,s)=>a+(Number(s.cotizacion)||0),0);
+  const totalGen  = totalEq1 + totalEq2;
+
+  const detalleDias = dias.map(fecha => {
+    const deq1 = lista.filter(s=>s.fecha_servicio===fecha&&s.equipo==='equipo1').reduce((a,s)=>a+(Number(s.cotizacion)||0),0);
+    const deq2 = lista.filter(s=>s.fecha_servicio===fecha&&s.equipo==='equipo2').reduce((a,s)=>a+(Number(s.cotizacion)||0),0);
+    return { fecha, equipo1: deq1, equipo2: deq2, total: deq1+deq2 };
+  });
+
+  const { error } = await sb.from('semanas').insert({
+    fecha_inicio:  lunes,
+    fecha_fin:     sabado,
+    label:         labelSemana(lunes, sabado),
+    total_equipo1: totalEq1,
+    total_equipo2: totalEq2,
+    total_general: totalGen,
+    detalle_dias:  detalleDias,
+  });
+
+  if (error) { alert('Error al guardar: ' + error.message); btn.disabled=false; btn.textContent='Cerrar semana y guardar en historial'; return; }
+
+  await cargarContabilidad();
+}
+
+// ── VISTA EQUIPO ──
+async function initEquipo() {
+  document.getElementById('vista-equipo').style.display = 'block';
+  const fechaHoy = formatFecha(HOY);
+  const nombres = { equipo1:'Nahuel y Máximo', equipo2:'Ángel y su madre' };
+  document.getElementById('greeting-title').textContent = `Buenos días, ${nombres[currentPerfil.rol]||''}`;
+  document.getElementById('greeting-date').textContent = fechaHoy.charAt(0).toUpperCase() + fechaHoy.slice(1);
+
+  // Después de las 17hs: mostrar también el día siguiente
+  let fechas = [HOY];
+  if (HORA_ACTUAL >= 17) {
+    const manana = new Date(AHORA);
+    manana.setDate(manana.getDate() + 1);
+    const mananaStr = manana.toISOString().split('T')[0];
+    // Solo si mañana no es domingo
+    if (manana.getDay() !== 0) fechas.push(mananaStr);
+  }
+
+  document.getElementById('loading-equipo').style.display = 'block';
+  const { data, error } = await sb.from('servicios').select('*')
+    .in('fecha_servicio', fechas)
+    .order('fecha_servicio',{ascending:true})
+    .order('hora_servicio',{ascending:true});
+  document.getElementById('loading-equipo').style.display = 'none';
+
+  if (error) { console.error(error); return; }
+  servicios = data || [];
+
+  const hoyCount = servicios.filter(s=>s.fecha_servicio===HOY).length;
+  document.getElementById('greeting-count').textContent = hoyCount;
+
+  const grid = document.getElementById('grid-equipo');
+  grid.innerHTML = renderCards(servicios, false);
+  attachCardEvents();
+}
+
+// ── RENDER CARDS ──
+function renderCards(list, isDueno) {
+  if (!list.length) return `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><p>Sin servicios para este criterio</p></div>`;
+
+  return list.map(s => {
+    const completado   = s.estado === 'completado';
+    const accentClass  = s.equipo === 'equipo1' ? 'accent-equipo1' : 'accent-equipo2';
+    const accionBtn = completado
+      ? `<button class="btn-realizado btn-desmarcar" data-id="${s.id}" data-action="desmarcar">
+           <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M2 6.5h9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Desmarcar
+         </button>`
+      : `<button class="btn-realizado btn-marcar-realizado" data-id="${s.id}" data-action="completar">
+           <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M2 7l3.5 3.5L11 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Marcar realizado
+         </button>`;
+    const editDelete = isDueno ? `
+      <button class="btn-icon" data-id="${s.id}" data-action="editar" title="Editar"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z"/></svg></button>
+      <button class="btn-icon danger" data-id="${s.id}" data-action="eliminar" title="Eliminar"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h10M6 4V2h4v2M5 4l.5 9h5L11 4"/></svg></button>` : '';
+    const notaHtml = s.anotaciones ? `<div class="card-nota">📝 ${s.anotaciones}</div>` : '';
+    const fechaExtra = isDueno ? `<div class="card-info-row"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="12" height="12" rx="1.5"/><path d="M5 2v2M11 2v2M2 7h12"/></svg>${formatFecha(s.fecha_servicio)}</div>` : '';
+
+    return `
+    <div class="service-card ${completado?'completado':''}" data-id="${s.id}">
+      <div class="card-accent ${accentClass}"></div>
+      <div class="card-body">
+        <div class="card-top">
+          <div>
+            <div class="card-hora">${formatHora(s.hora_servicio)}</div>
+            <div class="card-nombre ${completado?'tachado':''}">${s.nombre_cliente}</div>
+          </div>
+          <span class="card-tipo ${s.tipo_servicio==='auto'?'tipo-auto':'tipo-casa'}">${s.tipo_servicio==='auto'?'🚗 Auto':'🏠 Casa'}</span>
+        </div>
+        <div class="card-info">
+          ${fechaExtra}
+          <div class="card-info-row"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 2C5.8 2 4 3.8 4 6c0 3 4 8 4 8s4-5 4-8c0-2.2-1.8-4-4-4z"/><circle cx="8" cy="6" r="1.5"/></svg>${s.direccion}</div>
+          ${s.descripcion_servicio?`<div class="card-info-row"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M2 8h8M2 12h5"/></svg>${s.descripcion_servicio}</div>`:''}
+          ${s.cotizacion?`<div class="card-info-row"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 5v6M6 7h3.5a1.5 1.5 0 010 3H6"/></svg><span class="card-cotizacion">${formatPrecio(s.cotizacion)}</span></div>`:''}
+          ${s.telefono?`<div class="card-info-row"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l2.5 2.5-1 1.5c.5 1.5 2.5 3.5 4 4l1.5-1L13 13l-2 1.5C7 15 1 9 2.5 4.5L3 3z"/></svg>${s.telefono}</div>`:''}
+        </div>
+        ${notaHtml}
+      </div>
+      <div class="card-footer">
+        <span class="estado-badge estado-${s.estado}">${estadoLabel(s.estado)}</span>
+        <div class="card-actions">${accionBtn}${editDelete}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── CARD EVENTS ──
+function attachCardEvents() {
+  document.querySelectorAll('[data-action]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.id, action = btn.dataset.action;
+      if (action==='completar')  await updateEstado(id,'completado');
+      else if (action==='desmarcar') await updateEstado(id,'pendiente');
+      else if (action==='editar')    abrirModal(id);
+      else if (action==='eliminar') {
+        if (confirm('¿Eliminar este servicio?')) await eliminarServicio(id);
+      }
+    });
+  });
+}
+
+async function updateEstado(id, nuevoEstado) {
+  const { error } = await sb.from('servicios').update({ estado: nuevoEstado }).eq('id', id);
+  if (error) { alert('Error: ' + error.message); return; }
+  const s = servicios.find(s=>s.id===id);
+  if (s) s.estado = nuevoEstado;
+  if (currentPerfil.rol === 'dueno') { renderEstadisticas(); renderDueno(); }
+  else { document.getElementById('grid-equipo').innerHTML = renderCards(servicios,false); attachCardEvents(); }
+}
+
+async function eliminarServicio(id) {
+  const { error } = await sb.from('servicios').delete().eq('id', id);
+  if (error) { alert('Error: ' + error.message); return; }
+  servicios = servicios.filter(s=>s.id!==id);
+  renderEstadisticas(); renderDueno();
+}
+
+// ── MODAL ──
+document.getElementById('btn-nuevo').addEventListener('click', () => abrirModal(null));
+document.getElementById('btn-close-modal').addEventListener('click', cerrarModal);
+document.getElementById('btn-cancel-modal').addEventListener('click', cerrarModal);
+document.getElementById('modal-overlay').addEventListener('click', e => { if (e.target===document.getElementById('modal-overlay')) cerrarModal(); });
+
+function abrirModal(id) {
+  editingId = id;
+  document.getElementById('modal-title').textContent = id ? 'Editar servicio' : 'Nuevo servicio';
+  if (id) {
+    const s = servicios.find(s=>s.id===id);
+    if (s) {
+      document.getElementById('f-nombre').value      = s.nombre_cliente||'';
+      document.getElementById('f-telefono').value    = s.telefono||'';
+      document.getElementById('f-tipo').value        = s.tipo_servicio||'';
+      document.getElementById('f-cotizacion').value  = s.cotizacion||'';
+      document.getElementById('f-descripcion').value = s.descripcion_servicio||'';
+      document.getElementById('f-direccion').value   = s.direccion||'';
+      document.getElementById('f-fecha').value       = s.fecha_servicio||'';
+      document.getElementById('f-hora').value        = s.hora_servicio?s.hora_servicio.slice(0,5):'';
+      document.getElementById('f-equipo').value      = s.equipo||'';
+      document.getElementById('f-estado').value      = s.estado||'pendiente';
+      document.getElementById('f-anotaciones').value = s.anotaciones||'';
+    }
+  } else {
+    ['f-nombre','f-telefono','f-descripcion','f-direccion','f-anotaciones'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('f-tipo').value=''; document.getElementById('f-cotizacion').value='';
+    document.getElementById('f-fecha').value=HOY; document.getElementById('f-hora').value='';
+    document.getElementById('f-equipo').value=''; document.getElementById('f-estado').value='pendiente';
+  }
+  document.getElementById('modal-overlay').classList.add('open');
+  document.getElementById('f-nombre').focus();
+}
+
+function cerrarModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+  editingId = null;
+}
+
+document.getElementById('btn-save-modal').addEventListener('click', async () => {
+  const nombre    = document.getElementById('f-nombre').value.trim();
+  const tipo      = document.getElementById('f-tipo').value;
+  const direccion = document.getElementById('f-direccion').value.trim();
+  const fecha     = document.getElementById('f-fecha').value;
+  const hora      = document.getElementById('f-hora').value;
+  const equipo    = document.getElementById('f-equipo').value;
+  if (!nombre||!tipo||!direccion||!fecha||!hora||!equipo) { alert('Completá los campos obligatorios (*).'); return; }
+  const btn = document.getElementById('btn-save-modal');
+  btn.textContent='Guardando…'; btn.disabled=true;
+  const payload = {
+    nombre_cliente: nombre, telefono: document.getElementById('f-telefono').value.trim()||null,
+    tipo_servicio: tipo, cotizacion: document.getElementById('f-cotizacion').value||null,
+    descripcion_servicio: document.getElementById('f-descripcion').value.trim()||null,
+    direccion, fecha_servicio: fecha, hora_servicio: hora, equipo,
+    estado: document.getElementById('f-estado').value,
+    anotaciones: document.getElementById('f-anotaciones').value.trim()||null,
+  };
+  let error;
+  if (editingId) {
+    const res = await sb.from('servicios').update(payload).eq('id',editingId);
+    error = res.error;
+    if (!error) { const idx=servicios.findIndex(s=>s.id===editingId); if(idx!==-1) servicios[idx]={...servicios[idx],...payload}; }
+  } else {
+    const res = await sb.from('servicios').insert(payload).select().single();
+    error = res.error;
+    if (!error && res.data) servicios.push(res.data);
+  }
+  btn.textContent='Guardar servicio'; btn.disabled=false;
+  if (error) { alert('Error: '+error.message); return; }
+  cerrarModal(); renderEstadisticas(); renderDueno();
+});
+</script>
+</body>
+</html>
